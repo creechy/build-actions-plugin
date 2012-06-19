@@ -11,6 +11,8 @@ import java.io.File;
 import java.io.FileWriter;
 import java.io.IOException;
 import java.util.Properties;
+import java.util.logging.Level;
+import java.util.logging.Logger;
 import org.apache.tools.ant.module.api.support.ActionUtils;
 import org.netbeans.api.project.FileOwnerQuery;
 import org.netbeans.api.project.Project;
@@ -39,6 +41,7 @@ displayName = "#CTL_BuildAction")
 @Messages("CTL_BuildAction=Build Action")
 public final class BuildAction implements ActionListener {
 
+    private static final Logger logger = Logger.getLogger(BuildAction.class.getName());
     private final DataObject dataContext;
 
     public BuildAction(DataObject dataContext) {
@@ -50,8 +53,8 @@ public final class BuildAction implements ActionListener {
 
         String path = dataContext.getPrimaryFile().getPath();
         Project owner = FileOwnerQuery.getOwner(FileUtil.toFileObject(new File(path)));
-        System.err.println("PRIMARY File = " + path);
-        System.err.println("OWNER PROJECT = " + ((owner != null) ? owner.getProjectDirectory() : ""));
+        logger.log(Level.INFO, "PRIMARY File = " + path);
+        logger.log(Level.INFO, "OWNER PROJECT = " + ((owner != null) ? owner.getProjectDirectory() : ""));
         String actions = NbPreferences.forModule(BuildActionsPanel.class).get("actions", "compile-test");
         String build = NbPreferences.forModule(BuildActionsPanel.class).get("build", null);
 
@@ -59,17 +62,17 @@ public final class BuildAction implements ActionListener {
         if (project != null) {
             try {
                 FileObject mainDirectory = project.getProjectDirectory();
-                System.err.println("PROJECT DIRECTORY = " + mainDirectory.getPath());
+                logger.log(Level.INFO, "PROJECT DIRECTORY = " + mainDirectory.getPath());
 
                 FileObject projectBuildFile = FileUtil.toFileObject(new File(FileUtil.toFile(mainDirectory), "build.xml"));
 
                 if (build != null && build.length() > 0) {
                     String target = ProjectUtils.getInformation(project).getName();
-                    System.err.println("PROJECT NAME = " + target);
+                    logger.log(Level.INFO, "PROJECT NAME = " + target);
 
                     final File buildFile = File.createTempFile("build-", ".xml");
                     buildFile.deleteOnExit();
-                    System.err.println("BUILD FILE = " + buildFile);
+                    logger.log(Level.INFO, "BUILD FILE = " + buildFile);
 
                     BufferedWriter out = new BufferedWriter(new FileWriter(buildFile));
                     out.write(build);
@@ -88,9 +91,9 @@ public final class BuildAction implements ActionListener {
                     ActionUtils.runTarget(projectBuildFile, actions.split(","), null);
                 }
             } catch (IOException ex) {
-                ex.printStackTrace();
+                logger.log(Level.SEVERE, "Error", ex);
             } catch (IllegalArgumentException ex) {
-                ex.printStackTrace();
+                logger.log(Level.SEVERE, "Error", ex);
             }
         }
     }
