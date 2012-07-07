@@ -30,6 +30,9 @@ import org.openide.util.NbBundle.Messages;
 import org.openide.util.NbPreferences;
 import org.openide.util.Task;
 import org.openide.util.TaskListener;
+import org.openide.windows.IOProvider;
+import org.openide.windows.InputOutput;
+import org.openide.windows.OutputWriter;
 
 @ActionID(category = "Build",
 id = "org.fakebelieve.netbeans.buildactions.BuildAction")
@@ -52,49 +55,90 @@ public final class BuildAction implements ActionListener {
     public void actionPerformed(ActionEvent e) {
 
         String path = dataContext.getPrimaryFile().getPath();
+        String file = dataContext.getPrimaryFile().getNameExt();
+
         Project owner = FileOwnerQuery.getOwner(FileUtil.toFileObject(new File(path)));
-        logger.log(Level.INFO, "PRIMARY File = " + path);
-        logger.log(Level.INFO, "OWNER PROJECT = " + ((owner != null) ? owner.getProjectDirectory() : ""));
-        String actions = NbPreferences.forModule(BuildActionsPanel.class).get("actions", "compile-test");
+        logger.log(Level.INFO, "PRIMARY File Path = {0}", path);
+        logger.log(Level.INFO, "PRIMARY File Name = {0}", file);
+        logger.log(Level.INFO, "OWNER PROJECT = {0}", ((owner != null) ? owner.getProjectDirectory() : ""));
+
         String build = NbPreferences.forModule(BuildActionsPanel.class).get("build", null);
 
+        //
+        // If a project is selected based on the primary file with focus 
+        // use it, otherwise use the main project
+        //
         Project project = (owner != null) ? owner : OpenProjects.getDefault().getMainProject();
         if (project != null) {
             try {
                 FileObject mainDirectory = project.getProjectDirectory();
-                logger.log(Level.INFO, "PROJECT DIRECTORY = " + mainDirectory.getPath());
+                logger.log(Level.INFO, "PROJECT DIRECTORY = {0}", mainDirectory.getPath());
 
                 FileObject projectBuildFile = FileUtil.toFileObject(new File(FileUtil.toFile(mainDirectory), "build.xml"));
+                FileObject projectNekoFile = FileUtil.toFileObject(new File(FileUtil.toFile(mainDirectory), "build-neko.xml"));
 
-                if (build != null && build.length() > 0) {
-                    String target = ProjectUtils.getInformation(project).getName();
-                    logger.log(Level.INFO, "PROJECT NAME = " + target);
+                final File buildFile;
+                final boolean deleteBuildFile;
 
-                    final File buildFile = File.createTempFile("build-", ".xml");
+                //
+                // See if a a Neko build file exists in the project and use it if so,
+                // Otherwise create a temporary file an use the contents of the build preference
+                // for its contents to invoke.
+                //
+                if (projectNekoFile != null && projectNekoFile.isValid()) {
+                    buildFile = FileUtil.toFile(projectNekoFile);
+                    deleteBuildFile = false;
+                } else if (build != null && build.length() > 0) {
+                    buildFile = File.createTempFile("build-", ".xml");
                     buildFile.deleteOnExit();
-                    logger.log(Level.INFO, "BUILD FILE = " + buildFile);
 
                     BufferedWriter out = new BufferedWriter(new FileWriter(buildFile));
                     out.write(build);
                     out.close();
+                    deleteBuildFile = true;
+                } else {
+                    buildFile = null;
+                    deleteBuildFile = false;
+                }
+
+                //
+                // If we've located a build file somehow, lets invoke it,
+                // otherwise just exit silently.
+                //
+                if (buildFile != null) {
+                    logger.log(Level.INFO, "BUILD FILE = {0}", buildFile);
+
+                    String target = ProjectUtils.getInformation(project).getName();
+                    logger.log(Level.INFO, "PROJECT NAME = {0}", target);
+
                     Properties properties = new Properties();
                     properties.put("project-build-file", projectBuildFile.getPath());
+                    properties.put("project-folder", mainDirectory.getPath());
+                    if (path != null) {
+                        properties.put("primary-path", path.substring(mainDirectory.getPath().length() + 1));
+                        properties.put("primary-file", file);
+                    }
                     ExecutorTask runTarget = ActionUtils.runTarget(FileUtil.toFileObject(buildFile), new String[]{target}, properties);
                     runTarget.addTaskListener(new TaskListener() {
 
                         @Override
                         public void taskFinished(Task task) {
-                            buildFile.delete();
+                            if (deleteBuildFile) {
+                                buildFile.delete();
+                            }
                         }
                     });
-                } else {
-                    ActionUtils.runTarget(projectBuildFile, actions.split(","), null);
                 }
             } catch (IOException ex) {
                 logger.log(Level.SEVERE, "Error", ex);
             } catch (IllegalArgumentException ex) {
                 logger.log(Level.SEVERE, "Error", ex);
             }
+        } else {
+            InputOutput io = IOProvider.getDefault().getIO("Build Actions", false);
+            io.select(); //Tree tab is selected
+            OutputWriter writer = io.getOut();
+            writer.println("Error! No Project/File Selected.");
         }
     }
 }
