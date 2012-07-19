@@ -27,3 +27,18 @@ Finally, executed, the target that will be called will be the name of the projec
 
 With this, you can do a variety of things, in combination with all the regular ANT facilities (like the `condition` tags.)
 
+####Example####
+
+One problem I have noticed with Netbeans, is that there is no easy to compile ALL of the unit test code. This can be annoying when you have supporting classes that need recompiled but you only want to run a single unit test.
+
+With this plugin, you can do this pretty simply with the following code.
+
+
+    <?xml version="1.0" encoding="UTF-8"?>
+    <project default="default" name="BuildActions">
+
+      <target name="My_Netbeans_Project">
+        <ant antfile="${project-build-file}" inheritall="false" target="compile-test"/>
+      </target>
+
+    </project>
