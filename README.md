@@ -2,7 +2,11 @@
 
 This is a simple plugin which provides a button to execute ANT-based actions on Projects and Project Files.
 
-Its a little like NetBeans "bookmarking" feature, but in a more generalized way where a single button can do different things based on the Project or Project File that is highlighted.
+Its a little like NetBeans "bookmarking" feature, but in a more generalized way where a single button can do different things based on the Project or Project File that is highlighted. I wrote it for a couple of reasons. 
+
+* I was annoyed with not being able to perform some actions easily in Netbeans
+* I wanted to try writing a Netbeans plugin
+* I wanted to use Neko, the cat, as an icon button
 
 You can use it to do things like
 
@@ -27,18 +31,43 @@ Finally, executed, the target that will be called will be the name of the projec
 
 With this, you can do a variety of things, in combination with all the regular ANT facilities (like the `condition` tags.)
 
-####Example####
+####Examples####
 
-One problem I have noticed with Netbeans, is that there is no easy to compile ALL of the unit test code. This can be annoying when you have supporting classes that need recompiled but you only want to run a single unit test.
+One problem I have noticed with Netbeans, is that there is no easy to compile **ALL** of the unit test code. This can be annoying when you have supporting classes that need recompiled but you only want to run a single unit test.
 
 With this plugin, you can do this pretty simply with the following code.
 
 
     <?xml version="1.0" encoding="UTF-8"?>
     <project default="default" name="BuildActions">
+      <echo message="project-build-file=${project-build-file}"/>
+      <echo message="project-folder=${project-folder}"/>
+      <echo message="primary-path=${primary-path}"/>
+      <echo message="primary-file=${primary-file}"/>
 
       <target name="My_Netbeans_Project">
         <ant antfile="${project-build-file}" inheritall="false" target="compile-test"/>
       </target>
 
+    </project>
+
+Say you want to do something with some specific files in a project, maybe for example, you want to copy the generated JAR file to some other locations. Yes, I know NetBeans has the notion of project dependencies, but maybe you are inheriting some legacy code which is not set up easily to do this.
+
+In this example, when I select the `my-project.jar` and click the Build Actions button, the JAR file will be copied `/work/source/some-other-project/lib`.
+
+    <?xml version="1.0" encoding="UTF-8"?>
+    <project default="default" name="BuildActions">
+      <echo message="project-build-file=${project-build-file}"/>
+      <echo message="project-folder=${project-folder}"/>
+      <echo message="primary-path=${primary-path}"/>
+      <echo message="primary-file=${primary-file}"/>
+
+      <condition property="my-project-jar">
+        <matches pattern="my-project.*[.]jar" string="${primary-file}"/>
+      </condition>
+
+      <target name="My_Netbeans_Project" if="my-project-jar">
+        <echo message="copy ${primary-file}"/>
+        <copy file="${project-folder}/${primary-path}" todir="/work/source/some-other-project/lib" overwrite="yes"/>
+      </target>
     </project>
