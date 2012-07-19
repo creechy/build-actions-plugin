@@ -71,3 +71,7 @@ In this example, when I select the `my-project.jar` and click the Build Actions 
         <copy file="${project-folder}/${primary-path}" todir="/work/source/some-other-project/lib" overwrite="yes"/>
       </target>
     </project>
+
+###Oh and More Thing###
+
+The plugin will also look for a `build-neko.xml` file in the project's root folder. If it exists, it will do all the above using that build file instead of the global one in the Options.
